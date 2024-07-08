@@ -1,0 +1,4 @@
+khi 1 vi tri duoc click:
+    neu la button:
+    ne la o trong:
+        
