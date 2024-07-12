@@ -1,7 +1,7 @@
 import tkinter as tk
-import random
+from minimax import Node, alphabeta
 import time
-from testcode import evaluate_board
+    
 class ChineseChess:
     def __init__(self, root):
         self.root = root
@@ -27,7 +27,7 @@ class ChineseChess:
         self.valid_moves = {}
         # if self.turn == "black":
         #     self.ai_move()
-        print("getValue:", evaluate_board(self.pieces))
+        # print("getValue:", evaluate_board(self.pieces))
 
     def setup_board(self):
         # Vẽ bàn cờ
@@ -77,7 +77,7 @@ class ChineseChess:
                     ['soldier','','soldier','','soldier','','soldier','','soldier'],
                     ['','cannon','','','','','','cannon',''],
                     ['','','','','','','','',''],
-                    ['chariot', 'horse','elephant','advisor','','advisor','elephant','horse','chariot']
+                    ['chariot', 'horse','elephant','advisor','general','advisor','elephant','horse','chariot']
                 ]
 
         padding = self.padding
@@ -150,6 +150,7 @@ class ChineseChess:
         self.selected_piece = (x, y)
         oval_id = self.pieces[(x, y)].get("oval_id")
         self.canvas.itemconfig(oval_id, outline="blue", width=2)
+        self.canvas.update()
         if (x, y ) not in self.valid_moves:
             print(x,y, "not in valid moves")
             self.valid_moves[(x, y)] = self.calculate_valid_moves(x, y)
@@ -193,33 +194,8 @@ class ChineseChess:
             self.canvas.delete(self.id_line)
             self.id_line = None
         self.id_line =  self.canvas.create_line(x, y, xx, yy, fill="green", width=4)
-    def move_piece(self, from_x, from_y, to_x, to_y):
-        # print(f"move_piece({from_x}, {from_y}, {to_x}, {to_y})")
-        self.draw_line(from_x, from_y, to_x, to_y)
-        from_piece = self.pieces.pop((from_x, from_y))
-        if (to_x, to_y) in self.pieces:
-            to_piece = self.pieces.pop((to_x, to_y))
-            #fix moves outboart list
-            self.canvas.delete(to_piece["oval_id"])
-            self.canvas.delete(to_piece["text_id"])
+        self.canvas.update()
 
-        oval_id, text_id = from_piece["oval_id"], from_piece["text_id"]
-        x0, y0 = self.padding + to_x * self.width_cell, self.padding + to_y * self.width_cell
-        r = self.r
-        self.canvas.coords(oval_id, x0 - r, y0 - r, x0 + r, y0 + r)
-        self.canvas.coords(text_id, x0, y0)
-        self.canvas.lower(text_id)
-        self.canvas.lower(oval_id)
-        self.pieces[(to_x, to_y)] = from_piece
-        # self.selected_piece = (to_x, to_y)
-        #xoa self.valid_moves
-        self.valid_moves = {}
-        if self.turn == "red":
-            self.turn = "black"
-            # time.sleep(1)
-            self.AI_move()
-        else:
-            self.turn = "red"
     def valid_moves_chariot(self, x, y):
         moves = []
         current_color = self.pieces[(x, y)].get("color")
@@ -364,39 +340,38 @@ class ChineseChess:
             }
         return dict_moves[piece_name](x, y)
  
+    def move_piece(self, from_x, from_y, to_x, to_y):
+        # print(f"move_piece({from_x}, {from_y}, {to_x}, {to_y})")
+        self.draw_line(from_x, from_y, to_x, to_y)
+        from_piece = self.pieces.pop((from_x, from_y))
+        if (to_x, to_y) in self.pieces:
+            to_piece = self.pieces.pop((to_x, to_y))
+            #fix moves outboart list
+            self.canvas.delete(to_piece["oval_id"])
+            self.canvas.delete(to_piece["text_id"])
 
-
-    def evaluate_board(self):
-        # Hàm đánh giá bàn cờ, trả về điểm số của bàn cờ hiện tại
-        # Bạn cần triển khai hàm này dựa trên các yếu tố bạn muốn đánh giá
-        return 0
-
-    def minimax(self, depth, alpha, beta, maximizing_player):
-        if depth == 0 or self.is_game_over():
-            return self.evaluate_board()
-
-        if maximizing_player:
-            max_eval = float('-inf')
-            for move in self.get_all_moves('red'):
-                self.make_move(move)
-                eval = self.minimax(depth - 1, alpha, beta, False)
-                self.undo_move(move)
-                max_eval = max(max_eval, eval)
-                alpha = max(alpha, eval)
-                if beta <= alpha:
-                    break
-            return max_eval
+        oval_id, text_id = from_piece["oval_id"], from_piece["text_id"]
+        x0, y0 = self.padding + to_x * self.width_cell, self.padding + to_y * self.width_cell
+        r = self.r
+        self.canvas.coords(oval_id, x0 - r, y0 - r, x0 + r, y0 + r)
+        self.canvas.coords(text_id, x0, y0)
+        self.canvas.lower(text_id)
+        self.canvas.lower(oval_id)
+        self.pieces[(to_x, to_y)] = from_piece
+        # self.selected_piece = (to_x, to_y)
+        #xoa self.valid_moves
+        self.valid_moves = {}
+        if self.turn == "red":
+            self.turn = "black"
+            self.canvas.update()
+            self.AI_move()
         else:
-            min_eval = float('inf')
-            for move in self.get_all_moves('black'):
-                self.make_move(move)
-                eval = self.minimax(depth - 1, alpha, beta, True)
-                self.undo_move(move)
-                min_eval = min(min_eval, eval)
-                beta = min(beta, eval)
-                if beta <= alpha:
-                    break
-            return min_eval
+            self.turn = "red"
+
+
+
+
+
 
     def get_all_moves(self, color):
         # Hàm trả về tất cả các nước đi hợp lệ của màu quân cờ
@@ -425,22 +400,28 @@ class ChineseChess:
         # Bạn cần triển khai hàm này dựa trên luật chơi cờ tướng
         return False
 
-    def find_best_move(self, depth):
-        best_move = None
-        best_value = float('-inf')
-        for move in self.get_all_moves('black'):
-            self.make_move(move)
-            move_value = self.minimax(depth - 1, float('-inf'), float('inf'), False)
-            self.undo_move(move)
-            if move_value > best_value:
-                best_value = move_value
-                best_move = move
-        return best_move
 
     def AI_move(self):
-        best_move = self.find_best_move(3)
-        if best_move:
-            self.move_piece(best_move[0], best_move[1], best_move[2], best_move[3])
+        print("AI move")
+        first_node = Node(self.turn, self.pieces )
+        min_node = Node("min", {}, float("-inf"))
+        max_node = Node("max", {},float("inf"))
+        best_node = alphabeta(first_node, 1, min_node, max_node, True)
+        best_node = find_root(best_node)[-1]
+        # for node in best_node:
+        #     print(node.fromTo)
+        # print(best_node.fromTo)
+
+        (x,y,z,t) = best_node.fromTo
+        self.move_piece(x,y,z,t)
+        print("Player move")
+
+def find_root(node,hs=[]):
+
+    if node.parent == None:
+        return hs 
+    hs.append(node)
+    return find_root(node.parent, hs)
 
 root = tk.Tk()
 game = ChineseChess(root)
