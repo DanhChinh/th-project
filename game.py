@@ -1,5 +1,7 @@
 import tkinter as tk
-
+import random
+import time
+from testcode import evaluate_board
 class ChineseChess:
     def __init__(self, root):
         self.root = root
@@ -7,6 +9,7 @@ class ChineseChess:
         self.root.geometry("1000x800")
         self.padding = 25
         self.width_cell =60
+        self.id_line = None
         self.r = int(0.375*self.width_cell)
         self.canvas = tk.Canvas(
             root, 
@@ -24,6 +27,7 @@ class ChineseChess:
         self.valid_moves = {}
         # if self.turn == "black":
         #     self.ai_move()
+        print("getValue:", evaluate_board(self.pieces))
 
     def setup_board(self):
         # Vẽ bàn cờ
@@ -73,7 +77,7 @@ class ChineseChess:
                     ['soldier','','soldier','','soldier','','soldier','','soldier'],
                     ['','cannon','','','','','','cannon',''],
                     ['','','','','','','','',''],
-                    ['chariot', 'horse','elephant','advisor','general','advisor','elephant','horse','chariot']
+                    ['chariot', 'horse','elephant','advisor','','advisor','elephant','horse','chariot']
                 ]
 
         padding = self.padding
@@ -119,8 +123,12 @@ class ChineseChess:
 
 
     def on_cell_click(self, event, x, y):
+        # print("on_cell_click", self.selected_piece)
         if not self.selected_piece and (x,y) not in self.pieces:
             return
+        # fix loi 
+        # if not self.select_piece and  self.pieces[(x,y)]["color"] != self.turn:
+        #     return
         if not self.selected_piece:
             # Nếu chưa có quân cờ nào được chọn
             self.select_piece(x, y)
@@ -131,6 +139,7 @@ class ChineseChess:
             # Nếu có một quân cờ được chọn và click vào ô có thể di chuyển
             if (x, y) in self.valid_moves[self.selected_piece]:
                 self.move_piece(self.selected_piece[0], self.selected_piece[1], x, y)
+                self.selected_piece = (x,y)
                 self.clear_selection()
             else:
                 # Nếu click vào quân cờ khác, chọn quân cờ khác
@@ -149,6 +158,7 @@ class ChineseChess:
         self.highlight_valid_moves((x, y))
 
     def clear_selection(self):
+        print("clear_selection", self.selected_piece)
         if self.selected_piece:
             oval_id = self.pieces[self.selected_piece]["oval_id"]
             self.canvas.itemconfig(oval_id, outline="black", width=1)
@@ -173,11 +183,23 @@ class ChineseChess:
 
     def clear_valid_moves(self):
         self.canvas.delete("highlight")
+    def draw_line(self,x,y,xx,yy):
+        x = self.padding + x* self.width_cell
+        y = self.padding + y* self.width_cell
+        xx = self.padding + xx* self.width_cell
+        yy = self.padding + yy* self.width_cell
+        # self.canvas.delete(self.id_line)  # delete old line if exists
+        if self.id_line:
+            self.canvas.delete(self.id_line)
+            self.id_line = None
+        self.id_line =  self.canvas.create_line(x, y, xx, yy, fill="green", width=4)
     def move_piece(self, from_x, from_y, to_x, to_y):
         # print(f"move_piece({from_x}, {from_y}, {to_x}, {to_y})")
+        self.draw_line(from_x, from_y, to_x, to_y)
         from_piece = self.pieces.pop((from_x, from_y))
         if (to_x, to_y) in self.pieces:
             to_piece = self.pieces.pop((to_x, to_y))
+            #fix moves outboart list
             self.canvas.delete(to_piece["oval_id"])
             self.canvas.delete(to_piece["text_id"])
 
@@ -189,9 +211,15 @@ class ChineseChess:
         self.canvas.lower(text_id)
         self.canvas.lower(oval_id)
         self.pieces[(to_x, to_y)] = from_piece
-        self.selected_piece = (to_x, to_y)
+        # self.selected_piece = (to_x, to_y)
         #xoa self.valid_moves
         self.valid_moves = {}
+        if self.turn == "red":
+            self.turn = "black"
+            # time.sleep(1)
+            self.AI_move()
+        else:
+            self.turn = "red"
     def valid_moves_chariot(self, x, y):
         moves = []
         current_color = self.pieces[(x, y)].get("color")
@@ -338,19 +366,81 @@ class ChineseChess:
  
 
 
+    def evaluate_board(self):
+        # Hàm đánh giá bàn cờ, trả về điểm số của bàn cờ hiện tại
+        # Bạn cần triển khai hàm này dựa trên các yếu tố bạn muốn đánh giá
+        return 0
 
-    def ai_move(self):
-        root_node = Node(self.board_state(), self.turn)
-        best_move = find_best_move(root_node)
+    def minimax(self, depth, alpha, beta, maximizing_player):
+        if depth == 0 or self.is_game_over():
+            return self.evaluate_board()
+
+        if maximizing_player:
+            max_eval = float('-inf')
+            for move in self.get_all_moves('red'):
+                self.make_move(move)
+                eval = self.minimax(depth - 1, alpha, beta, False)
+                self.undo_move(move)
+                max_eval = max(max_eval, eval)
+                alpha = max(alpha, eval)
+                if beta <= alpha:
+                    break
+            return max_eval
+        else:
+            min_eval = float('inf')
+            for move in self.get_all_moves('black'):
+                self.make_move(move)
+                eval = self.minimax(depth - 1, alpha, beta, True)
+                self.undo_move(move)
+                min_eval = min(min_eval, eval)
+                beta = min(beta, eval)
+                if beta <= alpha:
+                    break
+            return min_eval
+
+    def get_all_moves(self, color):
+        # Hàm trả về tất cả các nước đi hợp lệ của màu quân cờ
+        # print("get_all_moves",self.pieces.items())
+        moves = []
+        for (x, y), piece in self.pieces.items():
+            if piece["color"] == color:
+                moves.extend([(x, y, nx, ny) for nx, ny in self.calculate_valid_moves(x, y)])
+        # from_x, from_y, to_x, to_y = random.choice(moves)
+        # print(from_x, from_y, to_x, to_y)
+        # self.move_piece(from_x, from_y, to_x, to_y)
+        return moves
+
+    def make_move(self, move):
+        # Hàm thực hiện một nước đi
+        from_x, from_y, to_x, to_y = move
+        self.move_piece(from_x, from_y, to_x, to_y)
+
+    def undo_move(self, move):
+        # Hàm hoàn tác một nước đi
+        from_x, from_y, to_x, to_y = move
+        self.move_piece(to_x, to_y, from_x, from_y)
+
+    def is_game_over(self):
+        # Hàm kiểm tra xem trò chơi đã kết thúc hay chưa
+        # Bạn cần triển khai hàm này dựa trên luật chơi cờ tướng
+        return False
+
+    def find_best_move(self, depth):
+        best_move = None
+        best_value = float('-inf')
+        for move in self.get_all_moves('black'):
+            self.make_move(move)
+            move_value = self.minimax(depth - 1, float('-inf'), float('inf'), False)
+            self.undo_move(move)
+            if move_value > best_value:
+                best_value = move_value
+                best_move = move
+        return best_move
+
+    def AI_move(self):
+        best_move = self.find_best_move(3)
         if best_move:
-            self.move_piece(best_move[0], best_move[1])
-
-
-    def board_state(self):
-        board = [['' for _ in range(9)] for _ in range(10)]
-        for (x, y), (oval, text) in self.pieces.items():
-            board[x][y] = self.canvas.itemcget(text, "text")
-        return board
+            self.move_piece(best_move[0], best_move[1], best_move[2], best_move[3])
 
 root = tk.Tk()
 game = ChineseChess(root)

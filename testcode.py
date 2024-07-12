@@ -1,11 +1,12 @@
-import copy
-
+# import copy
+'''
 class ChessGame:
     # Các hàm đã có từ trước
 
     def calculate_valid_moves(self, x, y):
         # Hàm tính toán các nước đi hợp lệ cho quân cờ tại vị trí (x, y)
         # Đây là hàm bạn cần hoàn thiện cho từng loại quân cờ
+
 
     def move_piece(self, from_x, from_y, to_x, to_y):
         oval_id, text_id = self.pieces.pop((from_x, from_y))
@@ -88,9 +89,53 @@ class ChessGame:
         if best_move:
             self.move_piece(best_move[0], best_move[1], best_move[2], best_move[3])
 
-# Trong phần chính của chương trình
-if __name__ == "__main__":
-    root = tk.Tk()
-    game = ChessGame(root)
-    root.after(1000, game.AI_move)  # Sau 1 giây, AI sẽ thực hiện nước đi
-    root.mainloop()
+'''
+class Node:
+    def __init__(self,turn, pieces, parent, children):
+        self.turn = turn  # 'black' or'red'
+        self.pieces = pieces
+        self.parent = parent
+        self.children = children
+        self.value = evaluate_board(pieces)
+def get_all_moves(node):
+
+def find_best_child(node, depth):
+    best_node = None
+    best_value = float('-inf')
+    for move in get_all_moves(node):
+        pass
+def evaluate_board(board):
+    scores = {
+        "chariot": 5,
+        "horse": 3.5,
+        "elephant": 2,
+        "advisor":1.5,
+        "general": 999,
+        "cannon": 3,
+        "soldier" :1 
+        }
+    coefficients = {
+        "red":1,
+        "black":-1
+    }
+    value = 0
+    for (x,y), piece in board.items():
+        value += scores[piece["name"]] * coefficients[piece["color"]]
+    return value
+def maxNode(nodeA, nodeB):
+    if nodeA.value > nodeB.value:
+        return nodeA
+    return nodeB
+def minNode(nodeA, nodeB):
+    if nodeA.value < nodeB.value:
+        return nodeA
+    return nodeB
+def isEndNode(node):
+    value = evaluate_board(node.board) 
+    return value>500 or value < -500
+def minimax(node, depth, maximizing_player):
+    if depth == 0 or isEndNode(node):
+        return node
+    if maximizing_player:
+        for child in node.children:
+            return maxNode(child, depth)
