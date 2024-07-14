@@ -1,7 +1,6 @@
 import tkinter as tk
-from minimax import Node, alphabeta
-from rule import get_valid_moves
-import time
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
     
 class ChineseChess:
     def __init__(self, root):
@@ -273,26 +272,43 @@ class ChineseChess:
 
 
     def AI_move(self):
-        best_move = self.find_best_move(3)
-        if best_move:
-            self.move_piece(best_move[0], best_move[1], best_move[2], best_move[3])
-    def find_best_move(self, depth):
-        best_move = None
-        best_value = float('-inf')
-        for move in self.get_all_moves('red'):
-            self.make_move(move)
-            move_value = self.minimax(depth - 1, float('-inf'), float('inf'), False)
-            self.undo_move(move)
-            if move_value > best_value:
-                best_value = move_value
-                best_move = move
-        return best_move
+        print("AI move")
+        first_node = Node(self.turn, self.pieces )
+        min_node = Node("min", {})
+        min_node.inf_min = True
+        max_node = Node("max", {})
+        max_node.inf_max = True
+        best_node = alphabeta(first_node, 3, min_node, max_node, True)
+        affterroot = find_affterroot(best_node)
+        # print(affterroot.counter)
+        # print(affterroot.get_value())
+        (x,y,z,t) = affterroot.fromTo
+        self.move_piece(x,y,z,t)
+        print("Player move")
 
 def find_affterroot(node):
     if node.parent.parent == None:
         return node 
     return node.parent
+def setUpBoard(root):
+    board = ttk.Labelframe(
+        root,
+        bootstyle="info",
+        width = 500,
+        height = 600,
+        text = 'board'
+        )
+    board.place(x=10, y=10)
+    return board
+
+def setUpRemote(root):
+    pass
 
 root = tk.Tk()
-game = ChineseChess(root)
+root.title("Chess")
+root.geometry("1000x800")
+root.attributes("-topmost", True)
+
+board = setUpBoard(root)
+remote = setUpRemote(root)
 root.mainloop()

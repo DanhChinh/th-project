@@ -11,47 +11,46 @@ def copy_and_move_pieces(pieces, from_x, from_y, to_x, to_y):
 
 class Node:
 	counter = 0
-	def __init__(self, turn, pieces, value=None, parent=None, children=[]):
+	def __init__(self, turn, pieces,  parent=None, children=[]):
 		self.turn = turn  # 'black' or'red'
 		self.pieces = pieces
-		self.value = value
-		if not value:
-			self.value = self.get_value()
 		self.parent = parent
 		self.children = children
 		self.fromTo = None
+		self.inf_min = False
+		self.inf_max = False
 		Node.counter+=1
-		print("counter:	",Node.counter)
-		# print(f"create Node:turn={turn}, pieces={pieces}, value={value}, parent={parent}")
 	def get_value(self):
+		if self.inf_min:
+			return float('-inf')
+		if self.inf_max:
+			return float('inf')
 		scores = {
-			"chariot": 5,
-			"horse": 3.5,
-			"elephant": 2,
-			"advisor":1.5,
+			"chariot": 50,
+			"horse": 35,
+			"elephant": 20,
+			"advisor":15,
 			"general": 999,
-			"cannon": 3,
-			"soldier" :1 
+			"cannon": 30,
+			"soldier" :10 
 	
 		}
 		coefficients = {
-			"red":1,
-			"black":-1
+			"red":-1,
+			"black":1
 		}
 
 		value = 0
 		for (x,y), piece in self.pieces.items():
 			value += scores[piece["name"]] * coefficients[piece["color"]]
-		self.value = value
-		print(value)
 		return value
 	def isEndNode(self):
-		return self.value > 500 or self.value < -500
+		return self.get_value() > 500 or self.get_value() < -500
 	'''
-	        moves = []
-        for (x, y), piece in self.pieces.items():
-            if piece["color"] == color:
-                moves.extend([(x, y, nx, ny) for nx, ny in self.calculate_valid_moves(x, y)])
+			moves = []
+		for (x, y), piece in self.pieces.items():
+			if piece["color"] == color:
+				moves.extend([(x, y, nx, ny) for nx, ny in self.calculate_valid_moves(x, y)])
 	'''
 	def get_children(self):
 		moves = []
@@ -60,11 +59,20 @@ class Node:
 				# moves.extend(get_valid_moves(self.pieces, x, y))
 				moves.extend([(x, y, nx, ny) for nx,ny in get_valid_moves(self.pieces, x, y)])
 		children = []
+		index = 0
 		for move in moves:
+			index += 1
+			# print(index,move, end="->")
 			from_x, from_y, to_x, to_y = move
+
 			new_pieces = copy_and_move_pieces(self.pieces,from_x, from_y, to_x, to_y)
-			new_node = Node(self.turn, new_pieces, parent=self)
+			turn = "red"
+			if self.turn == "red":
+				turn = "black"
+			new_node = Node(turn, new_pieces, parent=self)
 			new_node.fromTo = (from_x, from_y, to_x, to_y)
+			# print(new_node.get_value())
+			# description = f" {from_x}.{from_y}->{from_x}.{from_y}"
 			children.append(new_node)
 		self.children = children
 		return children
