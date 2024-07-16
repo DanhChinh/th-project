@@ -1,36 +1,22 @@
-import tkinter as tk
-from minimax import Node, alphabeta
+import tkinter as tk 
+from gameState import makeInitGameState
 from rule import get_valid_moves
-import time
-    
-class ChineseChess:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Chinese Chess")
-        # self.root.geometry("1000x800")
+import copy
+class ChessBoard:
+    def __init__(self, root, state):
+        self.gameState = state
         self.padding = 25
-        self.width_cell =60
-        self.id_line = None
-        self.r = int(0.375*self.width_cell)
+        self.width_cell = 60
+        self.r = int(0.375 * self.width_cell)
         self.canvas = tk.Canvas(
             root, 
             width=self.padding*2 + self.width_cell*8, 
             height=self.padding*2 + self.width_cell*9, 
             bg="light yellow"
             )
-        # self.canvas.place(x=0, y=0)
-        self.turn = "red"
+        self.selected = None
+    def draw_board(self):
         self.canvas.pack()
-        self.pieces = {}
-        self.setup_board()
-        self.setup_pieces()
-        self.selected_piece = None
-        self.valid_moves = {}
-        # if self.turn == "black":
-        #     self.ai_move()
-        # print("getValue:", evaluate_board(self.pieces))
-
-    def setup_board(self):
         # Vẽ bàn cờ
         # Ve hàng
         padding = self.padding
@@ -67,45 +53,9 @@ class ChineseChess:
             padding+5*width_cell, padding+7*width_cell,
             padding+3*width_cell, padding+9*width_cell
             )
-    def setup_pieces(self):
-        board = [   
-                    ['chariot', 'horse','elephant','advisor','general','advisor','elephant','horse','chariot'],
-                    ['','','','','','','','',''],
-                    ['','cannon','','','','','','cannon',''],
-                    ['soldier','','soldier','','soldier','','soldier','','soldier'],
-                    ['','','','','','','','',''],
-                    ['','','','','','','','',''],
-                    ['soldier','','soldier','','soldier','','soldier','','soldier'],
-                    ['','cannon','','','','','','cannon',''],
-                    ['','','','','','','','',''],
-                    ['chariot', 'horse','elephant','advisor','general','advisor','elephant','horse','chariot']
-                ]
-        board = [   
-                    ['', '','','','general','','','',''],
-                    ['','','','','','','','',''],
-                    ['','','','','','','','',''],
-                    ['','','','','','','horse','',''],
-                    ['','','','','','','','',''],
-                    ['','','','','','horse','','',''],
-                    ['','','','','','','','',''],
-                    ['','','','','','','','',''],
-                    ['','','','','','','','',''],
-                    ['', '','','','general','','','','']
-                ]
-        padding = self.padding
-        width_cell = self.width_cell
-        r = self.r
-        for y in range(10):
-            for x in range(9):
-                if board[y][x]:
-                    self.create_piece(board[y][x], x, y, "black" if y<5 else "red")
-                x0, y0 = padding + x * width_cell, padding + y * width_cell
-                tag = f"cell{y}_{x}"
-                cell_id = self.canvas.create_rectangle(x0 - r, y0 - r, x0 + r, y0 + r,outline="", fill="", tags = tag)
-                self.canvas.tag_bind(tag, "<Button-1>", lambda e, x=x, y=y: self.handle_left_click(e, x, y))
-                # self.canvas.lift(cell_id)
-
-    def create_piece(self, name, x, y, color):
+        self.canvas.update()
+    def draw_pieces(self):
+        pieces = self.gameState.pieces
         name_dict = {
             "chariot": ["xe","車","俥"],
             "horse": ["mã", "馬","馬"],
@@ -115,78 +65,40 @@ class ChineseChess:
             "cannon": ["pháo", "包","炮"],
             "soldier": ["tốt", "卒","兵"]
             }
-        name_chinese = name_dict[name][1] #black
-        if y>4:
-            name_chinese = name_dict[name][2] #red
-        x0, y0 = self.padding + x * self.width_cell, self.padding + y * self.width_cell
-        r = self.r
-        oval_id = self.canvas.create_oval(x0 - r, y0 - r, x0 + r, y0 + r, fill=color)
-        text_id = self.canvas.create_text(x0, y0, text=name_chinese, fill="white",  font= 12)
-        self.pieces[(x, y)] = {
-            "oval_id":oval_id, 
-            "text_id":text_id, 
-            "name":name,
-            "color":color,
-            "name_vie":name_dict[name],
-            "name_chinese":name_chinese
-            }
-
-
-
-
-    def handle_left_click(self, event, x, y):
-        if self.turn == "black":
-            return
-
-        if not self.selected_piece and (x,y) not in self.pieces:
-            return
-        # fix loi 
-        # if not self.select_piece and  self.pieces[(x,y)]["color"] != self.turn:
-        #     return
-        if not self.selected_piece:
-            # Nếu chưa có quân cờ nào được chọn
-            self.select_piece(x, y)
-        elif self.selected_piece == (x, y):
-            # Nếu click vào chính quân cờ đã chọn, bỏ chọn
-            self.clear_selection()
-        else: #self.selected_piece != (x,y)
-            # Nếu có một quân cờ được chọn và click vào ô có thể di chuyển
-            if (x, y) in self.valid_moves[self.selected_piece]:
-                self.move_piece(self.selected_piece[0], self.selected_piece[1], x, y)
-                self.selected_piece = (x,y)
-                self.clear_selection()
-            else:
-                # Nếu click vào quân cờ khác, chọn quân cờ khác
-                self.clear_selection()
-                self.select_piece(x, y)
-
-    def select_piece(self, x, y):
-        self.selected_piece = (x, y)
-        oval_id = self.pieces[(x, y)].get("oval_id")
-        self.canvas.itemconfig(oval_id, outline="blue", width=2)
+        for (row,col), piece in pieces.items():
+            name = name_dict[piece['name']][1]
+            if piece['color'] == 'red':
+                name = name_dict[piece['name']][2]
+            x0 = self.padding +  col* self.width_cell 
+            y0 = self.padding + row * self.width_cell
+            r = self.r
+            tag = f"chessman{row}_{col}"
+            self.canvas.create_oval(x0 - r, y0 - r, x0 + r, y0 + r, fill=piece['color'], tags = tag)
+            self.canvas.create_text(x0, y0, text=name, fill="white",  font= 12, tags = tag)
         self.canvas.update()
-        if (x, y ) not in self.valid_moves:
-            self.valid_moves[(x, y)] = get_valid_moves(self.pieces, x, y)
-        else:
-            print(x,y, "exist")
-        self.highlight_valid_moves((x, y))
-
-    def clear_selection(self):
-        # print("clear_selection", self.selected_piece)
-        if self.selected_piece:
-            oval_id = self.pieces[self.selected_piece]["oval_id"]
-            self.canvas.itemconfig(oval_id, outline="black", width=1)
-        self.clear_valid_moves() #clear highlight
-        self.selected_piece = None
-
-
-    def highlight_valid_moves(self, key):
+    def add_event(self):
+        print("Player move")
+        width_cell = self.width_cell
+        padding = self.padding
+        r  = self.r
+        for row in range(10):
+            for col in range(9):
+                x0 = padding + col * width_cell
+                y0 = padding + row * width_cell
+                tag = f"cell{row}_{col}"
+                cell_id = self.canvas.create_rectangle(x0 - r, y0 - r, x0 + r, y0 + r,outline="", fill="", tags = tag)
+                self.canvas.tag_bind(tag, "<Button-1>", lambda e, row=row, col=col: self.handle_left_click(e, row, col))
+        self.canvas.update()
+    def draw_valid_moves(self):
         padding = self.padding
         width = self.width_cell
         r = self.r
-        for move in self.valid_moves[key]:
+        self.clear_higlight()
+        #------
+        moves = self.gameState.player_valid_moves[self.selected]
+        for move in moves:
             #delete this line# if move not in self.pieces:
-            x0, y0 = padding + move[0] * width, padding + move[1] * width
+            y0, x0 = padding + move[0] * width, padding + move[1] * width
             self.canvas.create_rectangle(
                 x0 - r, y0 - r, 
                 x0 + r, y0 + r, 
@@ -194,105 +106,115 @@ class ChineseChess:
                 width=2, 
                 tag="highlight"
                 )
-
-    def clear_valid_moves(self):
+    def clear_higlight(self):
+        self.canvas.delete("selected")
         self.canvas.delete("highlight")
-    def draw_line(self,x,y,xx,yy):
+    def handle_left_click(self, event, row, col):
+
+        if not self.selected:
+            self.selected = (row, col)
+            tag = f"chessman{row}_{col}"
+            self.canvas.itemconfig(tag, width=3)
+            self.draw_valid_moves()
+            return
+        if self.selected and (row, col) == self.selected:
+            tag = f"chessman{row}_{col}"
+            self.canvas.itemconfig(tag, width=1)
+            self.selected = None
+            self.clear_higlight()
+            return
+        
+        if self.selected and (row, col) in self.gameState.player_valid_moves[self.selected]:
+            move = (self.selected[0], self.selected[1], row, col)
+            newState = self.gameState.makeChild(move)
+            self.gameState = newState
+            self.move_UI(move)
+            self.canvas.itemconfig(f"chessman{row}_{col}",width=1)
+            self.selected = None
+            self.clear_higlight()
+            self.remove_event()
+            self.AI_move()
+    def remove_event(self):
+        for row in range(10):
+            for col in range(9):
+                tag = f"cell{row}_{col}"
+                self.canvas.tag_unbind(tag, "<Button-1>")
+    def move_UI(self,best_move):
+        # print('move', best_move)
+        (row, col, newrow, newcol) = best_move
+        from_tag = f"chessman{row}_{col}"
+        to_tag = f"chessman{newrow}_{newcol}"
+        widget = self.canvas.find_withtag(to_tag) 
+        if  widget:
+            (to_oval_id, to_text_id) = widget
+            self.canvas.delete(to_oval_id)
+            self.canvas.delete(to_text_id)
+        # print("findtag",self.canvas.find_withtag(from_tag))
+        (oval_id, text_id) = self.canvas.find_withtag(from_tag)
+        
+        x0, y0 = self.padding + newcol * self.width_cell, self.padding + newrow * self.width_cell
+        r = self.r
+        self.canvas.coords(oval_id, x0 - r, y0 - r, x0 + r, y0 + r)
+        self.canvas.coords(text_id, x0, y0)
+        #check here
+        self.canvas.dtag(oval_id,from_tag)
+        self.canvas.dtag(text_id, from_tag)
+        self.canvas.addtag_withtag(to_tag, oval_id)
+        self.canvas.addtag_withtag(to_tag, text_id)
+        self.draw_line(col, row, newcol, newrow)
+        self.canvas.update()
+    def draw_line(self, x, y, xx, yy ):
         x = self.padding + x* self.width_cell
         y = self.padding + y* self.width_cell
         xx = self.padding + xx* self.width_cell
         yy = self.padding + yy* self.width_cell
         # self.canvas.delete(self.id_line)  # delete old line if exists
-        if self.id_line:
-            self.canvas.delete(self.id_line)
-            self.id_line = None
-        self.id_line =  self.canvas.create_line(x, y, xx, yy, fill="green", width=4)
-        self.canvas.update()
-
-
- 
-    def move_piece(self, from_x, from_y, to_x, to_y):
-        # print(f"move_piece({from_x}, {from_y}, {to_x}, {to_y})")
-        self.draw_line(from_x, from_y, to_x, to_y)
-        from_piece = self.pieces.pop((from_x, from_y))
-        if (to_x, to_y) in self.pieces:
-            to_piece = self.pieces.pop((to_x, to_y))
-            #fix moves outboart list
-            self.canvas.delete(to_piece["oval_id"])
-            self.canvas.delete(to_piece["text_id"])
-
-        oval_id, text_id = from_piece["oval_id"], from_piece["text_id"]
-        x0, y0 = self.padding + to_x * self.width_cell, self.padding + to_y * self.width_cell
-        r = self.r
-        self.canvas.coords(oval_id, x0 - r, y0 - r, x0 + r, y0 + r)
-        self.canvas.coords(text_id, x0, y0)
-        self.canvas.lower(text_id)
-        self.canvas.lower(oval_id)
-        self.pieces[(to_x, to_y)] = from_piece
-        # self.selected_piece = (to_x, to_y)
-        #xoa self.valid_moves
-        self.valid_moves = {}
-        if self.turn == "red":
-            self.turn = "black"
-            self.canvas.update()
-            self.AI_move()
-        else:
-            self.turn = "red"
-
-
-
-
-
-
-    def get_all_moves(self, color):
-        # Hàm trả về tất cả các nước đi hợp lệ của màu quân cờ
-        # print("get_all_moves",self.pieces.items())
-        moves = []
-        for (x, y), piece in self.pieces.items():
-            if piece["color"] == color:
-                moves.extend([(x, y, nx, ny) for nx, ny in self.calculate_valid_moves(x, y)])
-        # from_x, from_y, to_x, to_y = random.choice(moves)
-        # print(from_x, from_y, to_x, to_y)
-        # self.move_piece(from_x, from_y, to_x, to_y)
-        return moves
-
-    def make_move(self, move):
-        # Hàm thực hiện một nước đi
-        from_x, from_y, to_x, to_y = move
-        self.move_piece(from_x, from_y, to_x, to_y)
-
-    def undo_move(self, move):
-        # Hàm hoàn tác một nước đi
-        from_x, from_y, to_x, to_y = move
-        self.move_piece(to_x, to_y, from_x, from_y)
-
-    def is_game_over(self):
-        # Hàm kiểm tra xem trò chơi đã kết thúc hay chưa
-        # Bạn cần triển khai hàm này dựa trên luật chơi cờ tướng
-        return False
-
+        (line_id ) = self.canvas.find_withtag('line')
+        if line_id:
+            self.canvas.delete(line_id)
+        line_id = self.canvas.create_line(x, y, xx, yy, fill="green", width=4, tags = 'line')
+        self.canvas.lower(line_id)
 
     def AI_move(self):
-        best_move = self.find_best_move(3)
-        if best_move:
-            self.move_piece(best_move[0], best_move[1], best_move[2], best_move[3])
-    def find_best_move(self, depth):
-        best_move = None
-        best_value = float('-inf')
-        for move in self.get_all_moves('red'):
-            self.make_move(move)
-            move_value = self.minimax(depth - 1, float('-inf'), float('inf'), False)
-            self.undo_move(move)
-            if move_value > best_value:
-                best_value = move_value
-                best_move = move
-        return best_move
+        print("AI_move")
+        state = self.gameState
+        depth = get_depth(len(self.gameState.pieces))
+        print('depth:', depth)
+        best_move = state.find_best_move(depth)
+        newState = self.gameState.makeChild(best_move)
+        self.gameState = newState #logic
+        self.move_UI(best_move) #ui
+        #--
+        self.gameState.get_dict_valid_moves() #logic
+        self.add_event() #ui
+def get_depth(size):
+    max_depth = 5 
+    min_depth = 3
+    max_size = 32
+    min_size = 1
+    
+    if size < min_size:
+        size = min_size
+    elif size > max_size:
+        size = max_size
+    
+    depth = max_depth - ((size - min_size) / (max_size - min_size) * (max_depth - min_depth))
+    return int(depth)
 
-def find_affterroot(node):
-    if node.parent.parent == None:
-        return node 
-    return node.parent
+# Ví dụ sử dụng
 
+
+
+
+gameState = makeInitGameState()
 root = tk.Tk()
-game = ChineseChess(root)
+root.attributes("-topmost", True)
+board = ChessBoard(root, gameState)
+board.draw_board()
+board.draw_pieces()
+if gameState.turn == 'red':
+    board.get_player_valid_moves()
+    board.add_event()
+else:
+    board.AI_move()
 root.mainloop()
